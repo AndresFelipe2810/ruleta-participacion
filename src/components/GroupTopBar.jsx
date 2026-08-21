@@ -108,29 +108,38 @@ export default function GroupTopBar({
 
   useEffect(() => {
     if (!popoverOpen) return
-    const handleMouseDown = (e) => {
-      const inPopover = popoverRef.current && popoverRef.current.contains(e.target)
-      const inButton = crearBtnRef.current && crearBtnRef.current.contains(e.target)
-      if (!inPopover && !inButton) {
-        setPopoverOpen(false)
-        setPopoverPos(null)
-      }
-    }
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setPopoverOpen(false)
-        setPopoverPos(null)
-      }
-    }
-    const closeOnResize = () => {
+
+    const cerrar = () => {
       setPopoverOpen(false)
       setPopoverPos(null)
     }
-    document.addEventListener('mousedown', handleMouseDown)
+
+    // Cierre al tocar/hacer clic fuera del popover y del botón.
+    // Se escucha touchstart además de mousedown para que funcione en Android.
+    const handlePointerDown = (e) => {
+      const inPopover = popoverRef.current && popoverRef.current.contains(e.target)
+      const inButton = crearBtnRef.current && crearBtnRef.current.contains(e.target)
+      if (!inPopover && !inButton) cerrar()
+    }
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') cerrar()
+    }
+
+    // En móvil, el teclado virtual se abre al enfocar el input y dispara un
+    // resize de SOLO altura (innerHeight). Eso no debe cerrar el popover;
+    // solo se cierra ante un cambio real de ancho (rotación / split-screen).
+    const anchoInicial = window.innerWidth
+    const closeOnResize = () => {
+      if (Math.abs(window.innerWidth - anchoInicial) > 40) cerrar()
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown, { passive: true })
     document.addEventListener('keydown', handleKeyDown)
     window.addEventListener('resize', closeOnResize)
     return () => {
-      document.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown, { passive: true })
       document.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('resize', closeOnResize)
     }
