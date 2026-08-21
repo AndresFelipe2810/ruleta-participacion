@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Design tokens por tema (Modern Glass)
+   Dark glass es el default; .light lo sobreescribe.
+   ============================================================ */
+@layer base {
+  :root,
+  .dark {
+    --bg-base: #0b1024;
+    --glass-bg: rgba(255, 255, 255, 0.06);
+    --glass-strong: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --field-bg: rgba(255, 255, 255, 0.07);
+    --ink: #f1f5f9;
+    --ink-soft: #cbd5e1;
+    --ink-faint: #64748b;
+    --glass-shadow: 0 8px 32px rgba(2, 6, 23, 0.45);
+    --accent-glow: rgba(129, 140, 248, 0.5);
+    --scrollbar-thumb: rgba(148, 163, 184, 0.35);
+  }
+
+  .light {
+    --bg-base: #eef2ff;
+    --glass-bg: rgba(255, 255, 255, 0.55);
+    --glass-strong: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.8);
+    --field-bg: rgba(255, 255, 255, 0.7);
+    --ink: #0f172a;
+    --ink-soft: #334155;
+    --ink-faint: #64748b;
+    --glass-shadow: 0 8px 32px rgba(99, 102, 241, 0.18);
+    --accent-glow: rgba(99, 102, 241, 0.35);
+    --scrollbar-thumb: rgba(100, 116, 139, 0.35);
+  }
+
+  * {
+    border-color: var(--glass-border);
+  }
+
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  body {
+    min-height: 100vh;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    /* Fondo con gradientes radiales sutiles indigo/violet/cyan, nunca plano */
+    background:
+      radial-gradient(1100px 520px at 8% -12%, rgba(129, 140, 248, 0.16), transparent 60%),
+      radial-gradient(900px 480px at 108% 8%, rgba(34, 211, 238, 0.13), transparent 60%),
+      radial-gradient(950px 620px at 50% 118%, rgba(167, 139, 250, 0.14), transparent 60%),
+      var(--bg-base);
+    background-attachment: fixed;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb);
+    opacity: 0.8;
+  }
+}
+
+/* ============================================================
+   Componentes base (utilidades semánticas)
+   ============================================================ */
+@layer components {
+  .glass-panel {
+    @apply rounded-2xl border backdrop-blur-md;
+    background-color: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-field {
+    @apply w-full rounded-xl border px-3 py-2.5 text-sm transition;
+    background-color: var(--field-bg);
+    border-color: var(--glass-border);
+    color: var(--ink);
+  }
+  .glass-field::placeholder {
+    color: var(--ink-faint);
+  }
+  .glass-field:focus {
+    outline: none;
+    border-color: rgba(129, 140, 248, 0.6);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-bold transition duration-200;
+    color: #fff;
+    background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    box-shadow: 0 6px 24px -6px rgba(99, 102, 241, 0.55);
+  }
+  .btn-accent:hover {
+    box-shadow: 0 10px 32px -6px rgba(99, 102, 241, 0.65);
+    transform: translateY(-1px);
+  }
+  .btn-accent:active {
+    transform: translateY(0);
+  }
+  .btn-accent:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition;
+    background-color: var(--glass-bg);
+    border-color: var(--glass-border);
+    color: var(--ink-soft);
+  }
+  .btn-ghost:hover {
+    background-color: var(--glass-strong);
+    color: var(--ink);
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold;
+    background-color: var(--glass-strong);
+    border-color: var(--glass-border);
+    color: var(--ink-soft);
+  }
+}

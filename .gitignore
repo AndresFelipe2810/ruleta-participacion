@@ -1,0 +1,19 @@
+# Dependencias
+node_modules/
+
+# Build de producción
+dist/
+
+# Logs y entorno
+*.log
+.env
+.env.local
+
+# Sistema / editor
+.DS_Store
+
+# Proyecto separado dentro de esta carpeta: NO debe subirse a git
+free-claude-code/
+
+# Config local de Claude Code (por máquina)
+.claude/
