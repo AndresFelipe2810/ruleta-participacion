@@ -17,12 +17,13 @@ function easeInOutCubic(t) {
 /**
  * Orquesta la animación de la ruleta.
  *
- * El ganador se decide ANTES de girar con crypto.getRandomValues();
+ * El ganador se decide ANTES de girar: o bien viene de la bolsa de selección
+ * (se pasa `winningIndex`) o, como fallback, con crypto.getRandomValues();
  * la animación es puramente visual y siempre termina alineando la tajada
  * ganadora con el puntero. El "Modo Super" añade una falsa parada.
  *
  * @param {{ tick: () => void, victory: () => void, onFinish: (index: number) => void }} opts
- * @returns {{ rotation: number, isSpinning: boolean, girar: (arg: { numEstudiantes: number, superMode: boolean }) => number | null }}
+ * @returns {{ rotation: number, isSpinning: boolean, girar: (arg: { numEstudiantes: number, superMode: boolean, winningIndex?: number }) => number | null }}
  */
 export function useWheelSpin({ tick, victory, onFinish }) {
   const [rotation, setRotation] = useState(0)
@@ -42,14 +43,15 @@ export function useWheelSpin({ tick, victory, onFinish }) {
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
   const girar = useCallback(
-    ({ numEstudiantes, superMode }) => {
+    ({ numEstudiantes, superMode, winningIndex }) => {
       if (spinningRef.current || numEstudiantes === 0) return null
 
       const n = numEstudiantes
       const arcSize = (2 * Math.PI) / n
 
-      // 1. Ganador decidido ANTES de girar (criptográficamente seguro).
-      const winningIndex = pickRandomIndex(n)
+      // 1. Ganador decidido ANTES de girar. Si viene de la bolsa de selección
+      //    (useShuffleBag) se usa tal cual; si no, criptográficamente seguro.
+      const indexGanador = winningIndex ?? pickRandomIndex(n)
 
       // 2. ¿El Modo Super dispara una falsa parada?
       const fakeOut = !!superMode && secureRandom() < FAKE_OUT_PROBABILITY
@@ -72,12 +74,12 @@ export function useWheelSpin({ tick, victory, onFinish }) {
       let realTarget = null
 
       if (fakeOut && n > 2) {
-        fakeIndex = (winningIndex + 1 + Math.floor(secureRandom() * 3)) % n
+        fakeIndex = (indexGanador + 1 + Math.floor(secureRandom() * 3)) % n
         const fakeDelta = deltaFor(fakeIndex)
         const fakeSpins = (4 + Math.floor(secureRandom() * 3)) * 2 * Math.PI
         fakeTarget = start + fakeSpins + fakeDelta
 
-        const realDelta = deltaFor(winningIndex)
+        const realDelta = deltaFor(indexGanador)
         // Empujón final: distancia angular mínima (en sentido horario) desde
         // la parada falsa hasta caer en el ganador real (menos de una vuelta).
         // Alinea el centro real con el puntero: push ≡ fakeCenter − realCenter.
@@ -86,7 +88,7 @@ export function useWheelSpin({ tick, victory, onFinish }) {
         if (push === 0) push = 2 * Math.PI
         realTarget = fakeTarget + push
       } else {
-        const realDelta = deltaFor(winningIndex)
+        const realDelta = deltaFor(indexGanador)
         const fullSpins = (6 + Math.floor(secureRandom() * 4)) * 2 * Math.PI
         realTarget = start + fullSpins + realDelta
       }
@@ -135,12 +137,12 @@ export function useWheelSpin({ tick, victory, onFinish }) {
           setIsSpinning(false)
           cbRef.current.victory()
           fireConfetti()
-          cbRef.current.onFinish(winningIndex)
+          cbRef.current.onFinish(indexGanador)
         }
       }
 
       rafRef.current = requestAnimationFrame(frame)
-      return winningIndex
+      return indexGanador
     },
     []
   )

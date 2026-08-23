@@ -1,23 +1,22 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Pencil, Plus, Save, Trash2, UserPlus, Users, X } from 'lucide-react'
+import { Plus, RefreshCcw, Trash2, UserPlus, Users, X } from 'lucide-react'
 
 /**
- * Panel lateral de participantes.
+ * Panel de participantes de la ronda activa (copia de trabajo).
  *
- * Es una lista de trabajo: editar aquí no toca los grupos guardados. Cuando hay
- * un grupo seleccionado (`grupoNombre`), aparece un botón "Guardar en [grupo]"
- * para confirmar los cambios de forma explícita, con indicador de "sin guardar".
+ * Editar aquí NO toca los grupos maestros: estos viven en el Gestor de Grupos.
+ * Cuando se elimina a alguien de la ronda (por ejemplo, el ganador que ya
+ * salió), "Reiniciar Ronda" en el pie restaura a todos los integrantes del
+ * grupo maestro.
  *
  * @param {string[]} estudiantes
  * @param {(nombre: string) => void} onAgregar
  * @param {(index: number) => void} onEliminar
  * @param {() => void} onVaciar
+ * @param {() => void} onReiniciar - restaura la lista activa desde el grupo maestro
+ * @param {string|null} grupoNombre - grupo cargado (controla la visibilidad de Reiniciar Ronda)
  * @param {boolean} disabled
- * @param {string|null} grupoNombre - grupo seleccionado (null = Lista Temporal)
- * @param {(() => void)|null} onGuardarLista - guarda la lista en el grupo activo
- * @param {boolean} dirty - true si la lista tiene cambios sin guardar
- * @param {number|null} savedAt - marca del último guardado (para el aviso)
  * @param {string} [className]
  */
 export default function ParticipantsPanel({
@@ -25,11 +24,9 @@ export default function ParticipantsPanel({
   onAgregar,
   onEliminar,
   onVaciar,
-  disabled = false,
+  onReiniciar = null,
   grupoNombre = null,
-  onGuardarLista = null,
-  dirty = false,
-  savedAt = null,
+  disabled = false,
   className = '',
 }) {
   const [nombre, setNombre] = useState('')
@@ -57,10 +54,10 @@ export default function ParticipantsPanel({
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-glass-border bg-gradient-to-br from-indigo-500/20 to-cyan-400/20 text-indigo-400">
             <Users className="h-5 w-5" />
           </div>
-          <h2 className="font-bold text-ink">Participantes</h2>
+          <h2 className="font-bold text-ink">Participantes de la Ronda</h2>
           <span className="chip ml-auto bg-gradient-to-r from-indigo-500 to-cyan-400 text-white">
             {estudiantes.length}{' '}
-            {estudiantes.length === 1 ? 'Participante' : 'Participantes'} en la Ruleta
+            {estudiantes.length === 1 ? 'Participante' : 'Participantes'}
           </span>
         </div>
 
@@ -86,32 +83,6 @@ export default function ParticipantsPanel({
             Añadir
           </button>
         </div>
-
-        {/* Guardar lista en el grupo seleccionado (explícito) */}
-        {grupoNombre && onGuardarLista && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-glass-border bg-glass-strong px-3 py-2">
-            <button
-              type="button"
-              onClick={onGuardarLista}
-              disabled={!dirty || disabled}
-              className="btn-accent shrink-0 px-3 py-2 text-sm"
-            >
-              <Save className="h-4 w-4" />
-              Guardar en {grupoNombre}
-            </button>
-            {dirty ? (
-              <span className="chip border-amber-400/50 bg-amber-400/10 text-amber-400">
-                <Pencil className="h-3 w-3" />
-                Sin guardar
-              </span>
-            ) : (
-              <span className="chip border-emerald-400/50 bg-emerald-400/10 text-emerald-400">
-                <Check className="h-3 w-3" />
-                {savedAt ? 'Guardado' : 'Sin cambios'}
-              </span>
-            )}
-          </div>
-        )}
 
         {/* Fichas / estado vacío */}
         <AnimatePresence mode="wait" initial={false}>
@@ -178,6 +149,22 @@ export default function ParticipantsPanel({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Reiniciar Ronda: restaura todos los integrantes del grupo maestro en 1 clic */}
+        {onReiniciar && grupoNombre && !disabled && (
+          <div className="flex items-center gap-2">
+            <span className="chip max-w-[170px] truncate">Grupo: {grupoNombre}</span>
+            <button
+              type="button"
+              onClick={onReiniciar}
+              title="Restaurar todos los integrantes del grupo a la ruleta"
+              className="btn-ghost shrink-0"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Reiniciar Ronda
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

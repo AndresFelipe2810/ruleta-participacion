@@ -98,13 +98,9 @@ function draw(ctx, width, height, estudiantes, rotation) {
   const fontSize = Math.max(10, Math.min(20, radius / 7))
   const maxTextWidth = Math.max(24, radius - 30)
 
-  ctx.font = `700 ${fontSize}px Inter, system-ui, -apple-system, sans-serif`
+  ctx.font = `800 ${fontSize}px Inter, system-ui, -apple-system, sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#ffffff'
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)'
-  ctx.shadowBlur = 6
-  ctx.shadowOffsetY = 1
 
   for (let i = 0; i < n; i++) {
     const startAngle = rotation + i * arcSize
@@ -135,6 +131,8 @@ function draw(ctx, width, height, estudiantes, rotation) {
       labelAngle += Math.PI
     }
     ctx.rotate(labelAngle)
+    // Blanco puro, configurado dentro del bucle para que el texto se pinte nítido.
+    ctx.fillStyle = '#ffffff'
     ctx.fillText(label, 0, 0)
     ctx.restore()
   }

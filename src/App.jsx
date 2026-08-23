@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Dices } from 'lucide-react'
+import { Dices, Info } from 'lucide-react'
 import GroupTopBar from './components/GroupTopBar'
 import WheelSection from './components/WheelSection'
 import ParticipantsPanel from './components/ParticipantsPanel'
+import GroupManager from './components/GroupManager'
+import GroupManagerModal from './components/GroupManagerModal'
+import InfoModal from './components/InfoModal'
+import MobileTabs from './components/MobileTabs'
 import WinnerModal from './components/WinnerModal'
 import { useWheelSpin } from './hooks/useWheelSpin'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useAudio } from './hooks/useAudio'
+import { useShuffleBag } from './hooks/useShuffleBag'
 
 // La app arranca LIMPIA: sin grupos demo, en "Lista Temporal / Modo Libre".
 const uuid = () =>
@@ -16,14 +21,19 @@ const uuid = () =>
 
 export default function App() {
   const [grupos, setGrupos] = useLocalStorage('ruleta:grupos', [])
-  const [grupoSeleccionadoId, setGrupoSeleccionadoId] = useLocalStorage('ruleta:grupoId', null)
+  const [grupoCargadoId, setGrupoCargadoId] = useLocalStorage('ruleta:grupoId', null)
   const [estudiantesActivos, setEstudiantesActivos] = useLocalStorage('ruleta:activos', [])
   const [superMode, setSuperMode] = useLocalStorage('ruleta:super', false)
   const [theme, setTheme] = useLocalStorage('ruleta:theme', 'dark')
   const [ganador, setGanador] = useState(null)
-  const [savedAt, setSavedAt] = useState(null)
+  const [gestorAbierto, setGestorAbierto] = useState(false)
+  const [infoAbierta, setInfoAbierta] = useState(false)
+  const [tabMovil, setTabMovil] = useState('ruleta')
 
   const audio = useAudio()
+
+  // Bolsa de selección uniforme: evita repeticiones consecutivas (>3 opciones).
+  const { pick: pickGanador, reset: resetBolsa } = useShuffleBag(estudiantesActivos)
 
   // Aplica la clase de tema al <html> para que los tokens CSS resuelvan.
   useEffect(() => {
@@ -45,10 +55,9 @@ export default function App() {
     onFinish,
   })
 
-  /* ---------- Lista activa (lista de trabajo) ----------
-     La barra lateral es la lista de hoy: se puede editar libremente y NO toca
-     los grupos guardados. Cuando hay un grupo seleccionado, los cambios se
-     confirman de forma explícita con el botón "Guardar en [grupo]". */
+  /* ---------- Lista activa (copia de trabajo de la ronda) ----------
+     Editar aquí NO toca los grupos maestros. El grupo se restaura con
+     "Reiniciar Ronda". */
   const handleAgregar = useCallback(
     (nombre) => setEstudiantesActivos((prev) => [...prev, nombre]),
     [setEstudiantesActivos]
@@ -61,53 +70,52 @@ export default function App() {
 
   const handleVaciar = useCallback(() => setEstudiantesActivos([]), [setEstudiantesActivos])
 
-  // Al pulsar "Guardar en [grupo]" se copia la lista actual al grupo seleccionado.
-  const handleGuardarLista = useCallback(() => {
-    if (!grupoSeleccionadoId) return
-    setGrupos((prev) =>
-      prev.map((g) =>
-        g.id === grupoSeleccionadoId ? { ...g, estudiantes: [...estudiantesActivos] } : g
-      )
-    )
-    setSavedAt(Date.now())
-  }, [grupoSeleccionadoId, estudiantesActivos, setGrupos])
-
-  /* ---------- Grupos (maestros) ---------- */
-  const handleSelectGrupo = useCallback(
+  /* ---------- Cargar grupo a la ruleta (copia del maestro) ---------- */
+  const cargarGrupo = useCallback(
     (id) => {
       if (id === null) {
-        setGrupoSeleccionadoId(null)
+        setGrupoCargadoId(null) // Lista Temporal: se conserva la lista activa libre
         return
       }
       const grupo = grupos.find((g) => g.id === id)
       if (!grupo) return
-      setGrupoSeleccionadoId(id)
+      setGrupoCargadoId(id)
       setEstudiantesActivos([...grupo.estudiantes])
     },
-    [grupos, setGrupoSeleccionadoId, setEstudiantesActivos]
+    [grupos, setGrupoCargadoId, setEstudiantesActivos]
   )
 
-  // Crear un grupo guarda también los participantes actuales (o queda vacío).
-  // Si ya existe un grupo con ese nombre, se actualiza con la lista actual.
+  // Desde el Gestor: carga y cierra el modal / cambia a la pestaña Ruleta.
+  const cargarDesdeGestor = useCallback(
+    (id) => {
+      cargarGrupo(id)
+      setGestorAbierto(false)
+      setTabMovil('ruleta')
+    },
+    [cargarGrupo]
+  )
+
+  // Reiniciar Ronda: restaura todos los integrantes del grupo maestro en 1 clic.
+  const handleReiniciarRonda = useCallback(() => {
+    if (!grupoCargadoId) return
+    const grupo = grupos.find((g) => g.id === grupoCargadoId)
+    if (!grupo) return
+    setEstudiantesActivos([...grupo.estudiantes])
+    resetBolsa()
+  }, [grupoCargadoId, grupos, resetBolsa, setEstudiantesActivos])
+
+  /* ---------- Grupos (maestros, se editan solo en el Gestor) ---------- */
+  // Crear grupo nuevo = SIEMPRE vacío (nunca hereda participantes).
   const handleCrearGrupo = useCallback(
     (nombre) => {
       const n = nombre.trim()
       if (!n) return
       const existente = grupos.find((g) => g.nombre.toLowerCase() === n.toLowerCase())
-      if (existente) {
-        setGrupos((prev) =>
-          prev.map((g) =>
-            g.id === existente.id ? { ...g, estudiantes: [...estudiantesActivos] } : g
-          )
-        )
-        setGrupoSeleccionadoId(existente.id)
-      } else {
-        const nuevo = { id: uuid(), nombre: n, estudiantes: [...estudiantesActivos] }
-        setGrupos((prev) => [...prev, nuevo])
-        setGrupoSeleccionadoId(nuevo.id)
-      }
+      if (existente) return
+      const nuevo = { id: uuid(), nombre: n, estudiantes: [] }
+      setGrupos((prev) => [...prev, nuevo])
     },
-    [grupos, estudiantesActivos, setGrupos, setGrupoSeleccionadoId]
+    [grupos, setGrupos]
   )
 
   const handleRenombrarGrupo = useCallback(
@@ -122,19 +130,30 @@ export default function App() {
   const handleEliminarGrupo = useCallback(
     (id) => {
       setGrupos((prev) => prev.filter((g) => g.id !== id))
-      if (grupoSeleccionadoId === id) setGrupoSeleccionadoId(null)
+      if (grupoCargadoId === id) setGrupoCargadoId(null)
     },
-    [grupoSeleccionadoId, setGrupos, setGrupoSeleccionadoId]
+    [grupoCargadoId, setGrupos, setGrupoCargadoId]
+  )
+
+  const handleActualizarGrupo = useCallback(
+    (id, estudiantes) => {
+      setGrupos((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, estudiantes: [...estudiantes] } : g))
+      )
+    },
+    [setGrupos]
   )
 
   /* ---------- Giro ---------- */
   const handleGirar = useCallback(() => {
     if (isSpinning || estudiantesActivos.length === 0) return
-    const idx = girar({ numEstudiantes: estudiantesActivos.length, superMode })
-    if (idx !== null) {
+    const idx = pickGanador()
+    if (idx === null || idx < 0 || idx >= estudiantesActivos.length) return
+    const girado = girar({ numEstudiantes: estudiantesActivos.length, superMode, winningIndex: idx })
+    if (girado !== null) {
       winnerRef.current = { nombre: estudiantesActivos[idx], index: idx }
     }
-  }, [isSpinning, estudiantesActivos, superMode, girar])
+  }, [isSpinning, estudiantesActivos, superMode, girar, pickGanador])
 
   const handleMantener = useCallback(() => setGanador(null), [])
   const handleEliminarGanador = useCallback(() => {
@@ -144,84 +163,115 @@ export default function App() {
     setGanador(null)
   }, [ganador, setEstudiantesActivos])
 
-  const handleToggleTheme = useCallback(
-    (next) => setTheme(next),
-    [setTheme]
-  )
+  const handleToggleTheme = useCallback((next) => setTheme(next), [setTheme])
 
-  // Grupo activo + si la lista de trabajo tiene cambios sin guardar.
-  const grupoActivo = grupos.find((g) => g.id === grupoSeleccionadoId) ?? null
-  const dirty = !!grupoActivo && (
-    grupoActivo.estudiantes.length !== estudiantesActivos.length ||
-    grupoActivo.estudiantes.some((e, i) => e !== estudiantesActivos[i])
-  )
+  const grupoActivo = grupos.find((g) => g.id === grupoCargadoId) ?? null
 
   return (
-    <div className="min-h-screen px-4 pb-12 pt-6 text-ink sm:px-6">
+    <div className="min-h-screen px-4 pb-24 pt-6 text-ink sm:px-6 lg:pb-12">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         {/* Título */}
-        <header className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 shadow-glow-accent-lg">
-            <Dices className="h-6 w-6 text-white" />
+        <header className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 shadow-glow-accent-lg">
+              <Dices className="h-6 w-6 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">
+                Ruleta de Participación
+              </h1>
+              <p className="text-sm text-ink-faint">Gira, elige al azar y celebra el ganador.</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">
-              Ruleta de Participación
-            </h1>
-            <p className="text-sm text-ink-faint">Gira, elige al azar y celebra el ganador.</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setInfoAbierta(true)}
+            aria-label="Abrir guía de uso"
+            title="Guía de uso"
+            className="shrink-0 rounded-xl border border-glass-border bg-glass p-2.5 text-ink-soft transition hover:bg-glass-strong hover:text-ink"
+          >
+            <Info className="h-5 w-5" />
+          </button>
         </header>
 
-        {/* Barra superior de control de grupos */}
+        {/* Barra superior: selector de grupo + Gestionar Grupos + Modo Super + tema */}
         <GroupTopBar
           grupos={grupos}
-          grupoSeleccionadoId={grupoSeleccionadoId}
-          onSelectGrupo={handleSelectGrupo}
-          onCrearGrupo={handleCrearGrupo}
-          onRenombrarGrupo={handleRenombrarGrupo}
-          onEliminarGrupo={handleEliminarGrupo}
-          estudiantesActivos={estudiantesActivos}
+          grupoCargadoId={grupoCargadoId}
+          onSelectGrupo={cargarGrupo}
+          onOpenGestor={() => setGestorAbierto(true)}
           superMode={superMode}
           onToggleSuper={() => setSuperMode((v) => !v)}
           theme={theme}
           onToggleTheme={handleToggleTheme}
         />
 
-        {/* Área principal: ruleta (centro) + participantes (lateral).
-            En mobile, si la lista está vacía el panel va arriba para poder
-            escribir enseguida; al añadir, la ruleta sube al tope. */}
+        {/* Área principal. Desktop (lg): ruleta + participantes lado a lado.
+            Mobile: solo la pestaña activa (Ruleta | Participantes | Mis Grupos). */}
         <main className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_360px]">
-          <WheelSection
-            estudiantes={estudiantesActivos}
-            rotation={rotation}
-            isSpinning={isSpinning}
-            superMode={superMode}
-            onGirar={handleGirar}
-            soundEnabled={audio.soundEnabled}
-            onToggleSound={audio.toggleSound}
-            className={estudiantesActivos.length === 0 ? 'order-2 lg:order-none' : ''}
-          />
+          <div className={tabMovil === 'ruleta' ? '' : 'hidden lg:block'}>
+            <WheelSection
+              estudiantes={estudiantesActivos}
+              rotation={rotation}
+              isSpinning={isSpinning}
+              superMode={superMode}
+              onGirar={handleGirar}
+              soundEnabled={audio.soundEnabled}
+              onToggleSound={audio.toggleSound}
+            />
+          </div>
 
-          <ParticipantsPanel
-            estudiantes={estudiantesActivos}
-            onAgregar={handleAgregar}
-            onEliminar={handleEliminarEstudiante}
-            onVaciar={handleVaciar}
-            disabled={isSpinning}
-            grupoNombre={grupoActivo ? grupoActivo.nombre : null}
-            onGuardarLista={grupoActivo ? handleGuardarLista : null}
-            dirty={dirty}
-            savedAt={savedAt}
-            className={estudiantesActivos.length === 0 ? 'order-1 lg:order-none' : ''}
-          />
+          <div className={tabMovil === 'participantes' ? '' : 'hidden lg:block'}>
+            <ParticipantsPanel
+              estudiantes={estudiantesActivos}
+              onAgregar={handleAgregar}
+              onEliminar={handleEliminarEstudiante}
+              onVaciar={handleVaciar}
+              onReiniciar={handleReiniciarRonda}
+              grupoNombre={grupoActivo ? grupoActivo.nombre : null}
+              disabled={isSpinning}
+            />
+          </div>
+
+          {/* Mis Grupos: solo como pestaña en mobile; en desktop va en el modal */}
+          <div className={tabMovil === 'grupos' ? 'lg:hidden' : 'hidden'}>
+            <GroupManager
+              grupos={grupos}
+              grupoCargadoId={grupoCargadoId}
+              onCrearGrupo={handleCrearGrupo}
+              onRenombrarGrupo={handleRenombrarGrupo}
+              onEliminarGrupo={handleEliminarGrupo}
+              onActualizarGrupo={handleActualizarGrupo}
+              onCargarGrupo={cargarDesdeGestor}
+            />
+          </div>
         </main>
       </div>
+
+      {/* Navegación inferior mobile/tablet */}
+      <MobileTabs activa={tabMovil} onChange={setTabMovil} />
+
+      {/* Gestor de Grupos (escritorio): modal a pantalla completa */}
+      <GroupManagerModal
+        abierto={gestorAbierto}
+        onClose={() => setGestorAbierto(false)}
+        grupos={grupos}
+        grupoCargadoId={grupoCargadoId}
+        onCrearGrupo={handleCrearGrupo}
+        onRenombrarGrupo={handleRenombrarGrupo}
+        onEliminarGrupo={handleEliminarGrupo}
+        onActualizarGrupo={handleActualizarGrupo}
+        onCargarGrupo={cargarDesdeGestor}
+      />
 
       <WinnerModal
         ganador={ganador ? ganador.nombre : null}
         onMantener={handleMantener}
         onEliminar={handleEliminarGanador}
       />
+
+      {/* Guía / Manual de primeros pasos */}
+      <InfoModal abierto={infoAbierta} onClose={() => setInfoAbierta(false)} />
     </div>
   )
 }
