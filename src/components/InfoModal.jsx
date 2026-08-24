@@ -67,10 +67,10 @@ export default function InfoModal({ abierto = false, onClose }) {
                   <div className="min-w-0">
                     <h3 className="font-bold text-ink">Cómo funciona</h3>
                     <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                      Cada giro elige a alguien de forma completamente aleatoria y sin sesgos:
-                      una bolsa de selección (Fisher-Yates con criptografía) baraja a todos los
-                      participantes, evita repeticiones consecutivas y se asegura de que todos
-                      pasen antes de que alguien vuelva a salir.
+                      Cada giro elige a alguien de forma completamente aleatoria e independiente,
+                      usando criptografía (<code>crypto.getRandomValues</code>). Todos tienen la
+                      misma probabilidad en cada giro: un mismo participante puede salir varias
+                      veces seguidas, igual que en una ruleta real.
                     </p>
                   </div>
                 </section>

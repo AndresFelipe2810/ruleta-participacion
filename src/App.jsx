@@ -11,7 +11,6 @@ import WinnerModal from './components/WinnerModal'
 import { useWheelSpin } from './hooks/useWheelSpin'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useAudio } from './hooks/useAudio'
-import { useShuffleBag } from './hooks/useShuffleBag'
 
 // La app arranca LIMPIA: sin grupos demo, en "Lista Temporal / Modo Libre".
 const uuid = () =>
@@ -31,9 +30,6 @@ export default function App() {
   const [tabMovil, setTabMovil] = useState('ruleta')
 
   const audio = useAudio()
-
-  // Bolsa de selección uniforme: evita repeticiones consecutivas (>3 opciones).
-  const { pick: pickGanador, reset: resetBolsa } = useShuffleBag(estudiantesActivos)
 
   // Aplica la clase de tema al <html> para que los tokens CSS resuelvan.
   useEffect(() => {
@@ -101,8 +97,7 @@ export default function App() {
     const grupo = grupos.find((g) => g.id === grupoCargadoId)
     if (!grupo) return
     setEstudiantesActivos([...grupo.estudiantes])
-    resetBolsa()
-  }, [grupoCargadoId, grupos, resetBolsa, setEstudiantesActivos])
+  }, [grupoCargadoId, grupos, setEstudiantesActivos])
 
   /* ---------- Grupos (maestros, se editan solo en el Gestor) ---------- */
   // Crear grupo nuevo = SIEMPRE vacío (nunca hereda participantes).
@@ -147,13 +142,13 @@ export default function App() {
   /* ---------- Giro ---------- */
   const handleGirar = useCallback(() => {
     if (isSpinning || estudiantesActivos.length === 0) return
-    const idx = pickGanador()
-    if (idx === null || idx < 0 || idx >= estudiantesActivos.length) return
-    const girado = girar({ numEstudiantes: estudiantesActivos.length, superMode, winningIndex: idx })
-    if (girado !== null) {
+    // El ganador se elige dentro de `girar` de forma criptográficamente segura e
+    // independiente en cada giro; devuelve el índice elegido.
+    const idx = girar({ numEstudiantes: estudiantesActivos.length, superMode })
+    if (idx !== null) {
       winnerRef.current = { nombre: estudiantesActivos[idx], index: idx }
     }
-  }, [isSpinning, estudiantesActivos, superMode, girar, pickGanador])
+  }, [isSpinning, estudiantesActivos, superMode, girar])
 
   const handleMantener = useCallback(() => setGanador(null), [])
   const handleEliminarGanador = useCallback(() => {

@@ -17,13 +17,14 @@ function easeInOutCubic(t) {
 /**
  * Orquesta la animación de la ruleta.
  *
- * El ganador se decide ANTES de girar: o bien viene de la bolsa de selección
- * (se pasa `winningIndex`) o, como fallback, con crypto.getRandomValues();
- * la animación es puramente visual y siempre termina alineando la tajada
- * ganadora con el puntero. El "Modo Super" añade una falsa parada.
+ * El ganador se decide ANTES de girar, de forma criptográficamente segura
+ * (crypto.getRandomValues()) e independiente en cada giro: cada participante
+ * tiene la misma probabilidad y no hay memoria entre giros. La animación es
+ * puramente visual y siempre termina alineando la tajada ganadora con el
+ * puntero. El "Modo Super" añade una falsa parada.
  *
  * @param {{ tick: () => void, victory: () => void, onFinish: (index: number) => void }} opts
- * @returns {{ rotation: number, isSpinning: boolean, girar: (arg: { numEstudiantes: number, superMode: boolean, winningIndex?: number }) => number | null }}
+ * @returns {{ rotation: number, isSpinning: boolean, girar: (arg: { numEstudiantes: number, superMode: boolean }) => number | null }}
  */
 export function useWheelSpin({ tick, victory, onFinish }) {
   const [rotation, setRotation] = useState(0)
@@ -43,15 +44,16 @@ export function useWheelSpin({ tick, victory, onFinish }) {
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
   const girar = useCallback(
-    ({ numEstudiantes, superMode, winningIndex }) => {
+    ({ numEstudiantes, superMode }) => {
       if (spinningRef.current || numEstudiantes === 0) return null
 
       const n = numEstudiantes
       const arcSize = (2 * Math.PI) / n
 
-      // 1. Ganador decidido ANTES de girar. Si viene de la bolsa de selección
-      //    (useShuffleBag) se usa tal cual; si no, criptográficamente seguro.
-      const indexGanador = winningIndex ?? pickRandomIndex(n)
+      // 1. Ganador decidido ANTES de girar, de forma criptográficamente segura
+      //    e independiente: cada participante tiene la misma probabilidad en
+      //    cada giro, sin memoria de giros anteriores.
+      const indexGanador = pickRandomIndex(n)
 
       // 2. ¿El Modo Super dispara una falsa parada?
       const fakeOut = !!superMode && secureRandom() < FAKE_OUT_PROBABILITY
